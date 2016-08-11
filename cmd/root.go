@@ -19,14 +19,9 @@ import (
 	"os"
 	"github.com/spf13/cobra"
 	"github.com/kujtimiihoxha/plis-cli/generators"
-	"github.com/kujtimiihoxha/plis-cli/generators/cmd"
 	"github.com/kujtimiihoxha/plis-cli/config"
 	"github.com/kujtimiihoxha/plis-cli/fs"
-	"github.com/mattn/anko/vm"
-	"github.com/kujtimiihoxha/plis-cli/scripts"
 )
-
-var workingDir string
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -41,12 +36,7 @@ Plis is created by @kujtimiihoxha and is written in golang.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		var env = vm.NewEnv()
-		scripts.Build(env,RootGenerator,args);
-		_, err := env.Execute(`
-
-		`)
-		fmt.Println(err)
+		cmd.Help()
 	},
 }
 var RootGenerator *generators.PlisGenerator
@@ -78,14 +68,6 @@ func RootConfig() *generators.GeneratorConfig {
 			"sourced generators as plugins for plis.",
 			"",
 			"Plis is created by @kujtimiihoxha and is written in golang.",
-		},
-		Flags:&[]cmd.PlisFlag{
-			{
-				Long:"working-dir",
-				Short:"w",
-				Type:"string",
-				Persistent:true,
-			},
 		},
 	}
 }

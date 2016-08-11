@@ -47,11 +47,11 @@ import (
 	"github.com/kujtimiihoxha/plis-cli/fs"
 	"github.com/kujtimiihoxha/plis-cli/helpers"
 	"encoding/json"
+	"gopkg.in/flosch/pongo2.v3"
+	"path"
 )
 
 var pkgs  map[string]func(env *vm.Env) *vm.Env;
-
-var myEnv *vm.Env;
 
 func Build(env *vm.Env, generator *generators.PlisGenerator, args []string) {
 	anko_core.Import(env)
@@ -122,6 +122,19 @@ func addUserConfig(plis *vm.Env, command string) {
 	}
 	plis.Define("UserConfig",*config)
 }
+func templateFunctions(plis *vm.Env,gen *generators.PlisGenerator) {
+	pongo := pongo2.NewSet(gen.Config.Name)
+	pongo.SetBaseDirectory(helpers.GeneratorTemplatePath(gen.Config.Name))
+	plis.Define("CopyTpl", func(t string,dest string,data map[string]interface{}) error {
+		pongo.FromFile(t)
+
+		fmt.Println(path.Base(t),path.Dir(t))
+		return nil;
+	})
+	//plis.Define("CopyAll", func(t string,dest string,data map[string]interface{}) error{
+	//	return tpl.CopyAll(pongo,gen.Config.Name,t,dest,data)
+	//})
+}
 func plisModule(env *vm.Env, gen *generators.PlisGenerator, args []string) *vm.Env {
 	plis := env.NewPackage("plis")
 	arguments := map[string]interface{}{};
@@ -136,10 +149,26 @@ func plisModule(env *vm.Env, gen *generators.PlisGenerator, args []string) *vm.E
 			flags[v.Long] = flagToType(v.Long, gen.Cmd, v.Type)
 		}
 	}
+	addPersistentFlags(gen,&flags)
 	plis.Define("Args", arguments)
 	plis.Define("Flags", flags)
 	addUserConfig(plis,gen.GetRootParent().Config.Name)
+	templateFunctions(plis,gen)
 	return plis
+}
+func addPersistentFlags(gen *generators.PlisGenerator, flags  *map[string]interface{})  {
+	current := gen.Parent
+	for current.Config.Name != "plis" {
+		if current.Config.Flags == nil {
+			continue
+		}
+		for _,v := range *current.Config.Flags {
+			if v.Persistent {
+				(*flags)[v.Long] = flagToType(v.Long,gen.Cmd,v.Type)
+			}
+		}
+		current = current.Parent
+	}
 }
 func flagToType(name string, cmd *cobra.Command, tp string) interface{} {
 	switch tp {
@@ -152,6 +181,7 @@ func flagToType(name string, cmd *cobra.Command, tp string) interface{} {
 	case "float":
 		v, _ := cmd.Flags().GetFloat64(name)
 		return v
+
 	case "bool":
 		v, _ := cmd.Flags().GetBool(name)
 		return v

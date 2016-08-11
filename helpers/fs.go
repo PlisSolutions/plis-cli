@@ -53,6 +53,12 @@ func GeneratorUserConfigPath(command string) string {
 func GeneratorModulesPath(generator string) string {
 	return RootGeneratorPath(generator) + "modules" + afero.FilePathSeparator
 }
+func GeneratorTemplatePath(generator string) string {
+	return RootGeneratorPath(generator) + "templates" + afero.FilePathSeparator
+}
+func GeneratorTemplateFile(generator string,file string) string {
+	return RootGeneratorPath(generator) + "templates" + afero.FilePathSeparator + file
+}
 func GeneratorModulesFile(generator string, module string) string {
 	return GeneratorModulesPath(generator)  + module + ".plis"
 }
