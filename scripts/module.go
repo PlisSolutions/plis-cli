@@ -98,7 +98,7 @@ func Build(env *vm.Env, generator *generators.PlisGenerator, args []string) {
 		}
 		panic(fmt.Sprintf("package '%s' not found", s))
 	})
-	env.Define("register", func(m string, obj map[string]interface{}) {
+	env.Define("register", func(m string, obj *vm.Env) {
 		if _, ok := pkgs[m]; ok {
 			panic(fmt.Sprintf("package '%s' already exists", m))
 		} else if _, ok := pkgs[generator.GetRootParent().Config.Name+"/"+m]; ok {
@@ -106,11 +106,7 @@ func Build(env *vm.Env, generator *generators.PlisGenerator, args []string) {
 		}
 		//Search for the root function ex. angular2 don't use the current all packages will be in the root func.
 		pkgs[generator.GetRootParent().Config.Name+"/"+m] = func(env *vm.Env) *vm.Env {
-			md := env.NewModule(m)
-			for k, v := range obj {
-				md.Define(k, v)
-			}
-			return md
+			return obj
 		}
 	})
 }
@@ -127,7 +123,7 @@ func addUserConfig(plis *vm.Env, command string) {
 	plis.Define("UserConfig", *config)
 }
 func templateFunctions(plis *vm.Env, gen *generators.PlisGenerator) {
-	fs.InitTemplatesDirFs(gen.Config.Name)
+	fs.InitTemplatesDirFs(gen.GetRootParent().Config.Name)
 	pongo := pongo2.NewSet(gen.Config.Name)
 	pongo.SetBaseDirectory(helpers.GeneratorTemplatePath(gen.Config.Name))
 	plis.Define("CopyTpl", func(t string, dest string, context map[string]interface{}) error {
@@ -148,6 +144,7 @@ func templateFunctions(plis *vm.Env, gen *generators.PlisGenerator) {
 		if err != nil {
 			return err
 		}
+		addDefaultContextFuncs(context)
 		res, err := temp.Execute(context)
 		if err != nil {
 			return err
@@ -159,6 +156,7 @@ func templateFunctions(plis *vm.Env, gen *generators.PlisGenerator) {
 			filename = path.Base(dest)
 			dest = path.Dir(dest)
 		}
+
 		return tpl.CopyTpl(res, filename, dest)
 	})
 	plis.Define("CopyAll", func(v string, dest string, context map[string]interface{}) error {
@@ -166,16 +164,17 @@ func templateFunctions(plis *vm.Env, gen *generators.PlisGenerator) {
 		v = strings.TrimPrefix(v, "./")
 		v = strings.TrimPrefix(v, "/")
 		v = strings.TrimSuffix(v, "/")
-		dest = strings.TrimPrefix(dest, "/")
+		dest = strings.TrimPrefix(dest, ".")
+		dest = strings.TrimPrefix(dest, "./")
 		dest = strings.TrimSuffix(dest, "/")
 		a, err := afero.IsDir(fs.TemplatesDirFs(), v)
 		if !a || err != nil {
 			return errors.New("This template folder does not exist")
 		}
-		if path.Ext(dest) != "" {
+		if path.Ext(dest) != ""{
 			return errors.New("The destination path must be a folder")
 		}
-		tpls, err := getTemplates(gen.Config.Name, v)
+		tpls, err := getTemplates(gen.GetRootParent().Config.Name, v)
 		if err != nil {
 			return err
 		}
@@ -191,6 +190,7 @@ func templateFunctions(plis *vm.Env, gen *generators.PlisGenerator) {
 			if err != nil {
 				return err
 			}
+			addDefaultContextFuncs(context)
 			res, err := temp.Execute(context)
 			if err != nil {
 				return err
@@ -204,7 +204,8 @@ func templateFunctions(plis *vm.Env, gen *generators.PlisGenerator) {
 			}
 			filename = strings.Replace(filename, ".tpl", "", -1)
 			directory = strings.TrimSuffix(directory, ".")
-			err = tpl.CopyTpl(res, filename, dest+"/"+directory)
+			directory = strings.TrimSuffix(dest+"/"+directory,"/")
+			err = tpl.CopyTpl(res, filename, directory)
 			if err != nil {
 				return err
 			}
@@ -212,6 +213,17 @@ func templateFunctions(plis *vm.Env, gen *generators.PlisGenerator) {
 		return nil
 
 	})
+	plis.Define("Mkdir", func(path string) error {
+		return fs.WorkingDirFs().Mkdir(path,os.ModePerm)
+	})
+	plis.Define("MkdirAll", func(path string) error {
+		return fs.WorkingDirFs().MkdirAll(path,os.ModePerm)
+	})
+}
+func addDefaultContextFuncs(context map[string]interface{})  {
+	//context["len"]= func(v interface{}) {
+	//	len(v)
+	//};
 }
 func getTemplates(generator string, p string) ([]string, error) {
 	files := []string{}
@@ -246,7 +258,211 @@ func plisModule(env *vm.Env, gen *generators.PlisGenerator, args []string) *vm.E
 	plis.Define("Help", gen.Cmd.Help)
 	addGoDashFuncs(plis)
 	addPrompterFuncs(plis)
+	helperFunctions(plis)
+	jsonFuncs(plis)
+	fsFuncs(plis)
 	return plis
+}
+
+func fsFuncs(plis *vm.Env)  {
+	f :=  map[string]interface{}{}
+	f["ReadFile"] = func(file interface{}) (string,error) {
+		val,ok := file.(string)
+		if !ok {
+			fmt.Println("The file path to ReadFile must be a string")
+			os.Exit(-1)
+		}
+		bt,err := afero.ReadFile(fs.WorkingDirFs(),val)
+		return string(bt),err
+	}
+	f["ReadDir"] = func(file interface{}) ([]os.FileInfo,error) {
+		val,ok := file.(string)
+		if !ok {
+			fmt.Println("The file path to ReadDir must be a string")
+			os.Exit(-1)
+		}
+		return afero.ReadDir(fs.WorkingDirFs(),val)
+	}
+	f["WriteFile"] = func(file interface{},data interface{}) error {
+		val,ok := file.(string)
+		if !ok {
+			fmt.Println("The file path to WriteFile must be a string")
+			os.Exit(-1)
+		}
+		dt,ok := data.(string)
+		if !ok {
+			fmt.Println("The data to WriteFile must be a string")
+			os.Exit(-1)
+		}
+		return afero.WriteFile(fs.WorkingDirFs(),val,[]byte(dt),os.ModePerm)
+	}
+	plis.Define("Fs",f)
+}
+
+func jsonFuncs(plis *vm.Env)  {
+	js := map[string]interface{}{}
+	js["Indent"] = json.Indent
+	js["Marshal"] = func(data interface{}) string{
+		dt,err := json.Marshal(data)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+		return string(dt)
+	}
+	js["Unmarshal"] = func(data interface{}) (map[string]interface{} ,error){
+		dt,ok := data.(string)
+		if !ok {
+			fmt.Println("The data to Unmarshal must be a string")
+			os.Exit(-1)
+		}
+		resp := map[string]interface{}{}
+		err := json.Unmarshal([]byte(dt),&resp)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+		return  resp,err
+	}
+	js["MarshalIndent"] =  func(data interface{}) string{
+		dt,err := json.MarshalIndent(data ,"", "\t")
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+		return string(dt)
+	}
+	plis.Define("Json",js)
+}
+func helperFunctions(plis *vm.Env) {
+	hlp := map[string]interface{}{}
+	hlp["BasePath"]= helpers.BasePath
+	hlp["GeneratorsPath"]= helpers.GeneratorsPath
+	hlp["RootGeneratorPath"]= func(gen interface{}) string {
+		g,ok := gen.(string)
+		if !ok {
+		 	fmt.Println("The generator parameter to RootGeneratorPath must be a string")
+			os.Exit(-1)
+		}
+		return helpers.RootGeneratorPath(g)
+	}
+	hlp["RootGeneratorConfig"]= func(gen interface{}) string {
+		g,ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to RootGeneratorConfig must be a string")
+			os.Exit(-1)
+		}
+		return helpers.RootGeneratorConfig(g)
+	}
+	hlp["RootGeneratorScript"]=func(gen interface{}) string {
+		g, ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to RootGeneratorScript must be a string")
+			os.Exit(-1)
+		}
+		return helpers.RootGeneratorScript(g)
+	}
+	hlp["ChildGeneratorConfigPath"]= func(gen interface{}) string {
+		g, ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to ChildGeneratorConfigPath must be a string")
+			os.Exit(-1)
+		}
+		return helpers.ChildGeneratorConfigPath(g)
+	}
+	hlp["GeneratorScriptsPath"]= func(gen interface{}) string {
+		g, ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to GeneratorScriptsPath must be a string")
+			os.Exit(-1)
+		}
+		return helpers.GeneratorScriptsPath(g)
+	}
+	hlp["GeneratorTemplatesPath"]=  func(gen interface{}) string {
+		g, ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to GeneratorTemplatesPath must be a string")
+			os.Exit(-1)
+		}
+		return helpers.GeneratorTemplatesPath(g)
+	}
+	hlp["ChildGeneratorConfig"]= func(gen interface{}, child interface{}) string {
+		g, ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to ChildGeneratorConfig must be a string")
+			os.Exit(-1)
+		}
+		c, ok := child.(string)
+		if !ok {
+			fmt.Println("The child parameter to ChildGeneratorConfig must be a string")
+			os.Exit(-1)
+		}
+		return helpers.ChildGeneratorConfig(g,c)
+	}
+	hlp["ChildGeneratorScript"]= func(gen interface{}, child interface{}) string {
+		g, ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to ChildGeneratorScript must be a string")
+			os.Exit(-1)
+		}
+		c, ok := child.(string)
+		if !ok {
+			fmt.Println("The child parameter to ChildGeneratorScript must be a string")
+			os.Exit(-1)
+		}
+		return helpers.ChildGeneratorScript(g,c)
+	}
+	hlp["GeneratorUserConfigPath"]=  func(gen interface{}) string {
+		g, ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to GeneratorUserConfigPath must be a string")
+			os.Exit(-1)
+		}
+		return helpers.GeneratorUserConfigPath(g)
+	}
+	hlp["GeneratorModulesPath"]=  func(gen interface{}) string {
+		g, ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to GeneratorModulesPath must be a string")
+			os.Exit(-1)
+		}
+		return helpers.GeneratorModulesPath(g)
+	}
+	hlp["GeneratorTemplatePath"]= func(gen interface{}) string {
+		g, ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to GeneratorTemplatePath must be a string")
+			os.Exit(-1)
+		}
+		return helpers.GeneratorTemplatePath(g)
+	}
+	hlp["GeneratorTemplateFile"]= func(gen interface{}, template interface{}) string {
+		g, ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to GeneratorTemplateFile must be a string")
+			os.Exit(-1)
+		}
+		c, ok := template.(string)
+		if !ok {
+			fmt.Println("The template parameter to GeneratorTemplateFile must be a string")
+			os.Exit(-1)
+		}
+		return helpers.GeneratorTemplateFile(g,c)
+	}
+	hlp["GeneratorModulesFile"]= func(gen interface{}, module interface{}) string {
+		g, ok := gen.(string)
+		if !ok {
+			fmt.Println("The generator parameter to GeneratorModulesFile must be a string")
+			os.Exit(-1)
+		}
+		c, ok := module.(string)
+		if !ok {
+			fmt.Println("The module parameter to GeneratorModulesFile must be a string")
+			os.Exit(-1)
+		}
+		return helpers.GeneratorModulesFile(g,c)
+	}
+	plis.Define("Helpers",hlp)
 }
 func addGoDashFuncs(plis *vm.Env) {
 	str := make(map[string]interface{})
@@ -350,6 +566,7 @@ func addPersistentFlags(gen *generators.PlisGenerator, flags *map[string]interfa
 	current := gen.Parent
 	for current.Config.Name != "plis" {
 		if current.Config.Flags == nil {
+			current = current.Parent
 			continue
 		}
 		for _, v := range *current.Config.Flags {
@@ -359,6 +576,7 @@ func addPersistentFlags(gen *generators.PlisGenerator, flags *map[string]interfa
 		}
 		current = current.Parent
 	}
+
 }
 func flagToType(name string, cmd *cobra.Command, tp string) interface{} {
 	switch tp {

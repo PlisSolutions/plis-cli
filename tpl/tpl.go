@@ -24,27 +24,30 @@ import (
 )
 
 func CopyTpl(data string, file string, dest string) error {
-	exists, err := afero.Exists(fs.WorkingDirFs(), dest)
-	if err != nil {
-		return err
-	}
+	exists, _ := afero.Exists(fs.WorkingDirFs(), dest)
 	if !exists {
 		fs.WorkingDirFs().MkdirAll(dest, os.ModePerm)
 	}
-	exists, err = afero.Exists(fs.WorkingDirFs(), dest+file)
-	if err != nil {
-		return err
+	fl := dest+"/"+file
+	if dest == "" {
+		fl = file
 	}
+	exists, _ = afero.Exists(fs.WorkingDirFs(),fl)
+	fmt.Println(dest)
 	if exists {
-		r, _ := afero.ReadFile(fs.WorkingDirFs(), dest+file)
+		r, _ := afero.ReadFile(fs.WorkingDirFs(), fl)
 		if reflect.DeepEqual(r, []byte(data)) {
-			fmt.Printf("The file `%s` is identical and is going to be ignored", dest+file)
+			fmt.Printf("The file `%s` is identical and is going to be ignored",fl)
 			fmt.Println()
 			return nil
 		}
-		if !prompter.YN(fmt.Sprintf("The file `%s` already exists do you want to replace it", dest+file), false) {
+		if !prompter.YN(fmt.Sprintf("The file `%s` already exists do you want to replace it", fl), false) {
 			return nil
 		}
+	}
+
+	if dest == "." || dest == ""|| dest == "/" {
+		return afero.WriteFile(fs.WorkingDirFs(), file, []byte(data), os.ModePerm)
 	}
 	return afero.WriteFile(afero.NewBasePathFs(fs.WorkingDirFs(), dest), file, []byte(data), os.ModePerm)
 }

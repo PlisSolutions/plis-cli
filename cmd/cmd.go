@@ -81,6 +81,7 @@ func createRunFunction(gen *generators.PlisGenerator, generatorScriptPath string
 		_, err = env.Execute(string(data))
 		if err != nil {
 			fmt.Println("Error while executing generator script")
+			fmt.Println(err)
 			os.Exit(-1)
 		}
 	}
