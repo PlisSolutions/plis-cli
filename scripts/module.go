@@ -117,8 +117,7 @@ func Build(env *vm.Env, generator *generators.PlisGenerator, args []string) {
 func addUserConfig(plis *vm.Env, command string) {
 	data, err := afero.ReadFile(fs.WorkingDirFs(), helpers.GeneratorUserConfigPath(command))
 	if err != nil {
-		fmt.Println(fmt.Sprintf("Could not read config from `%s`", helpers.GeneratorUserConfigPath(command)))
-		os.Exit(-1)
+		return
 	}
 	config := &map[string]interface{}{}
 	if err := json.Unmarshal(data, &config); err != nil {
