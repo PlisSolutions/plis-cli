@@ -15,8 +15,8 @@
 package cmd
 
 type PlisArgument struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-	Required bool `json:"required"`
-	Default interface{} `json:"default"`
+	Name     string      `json:"name"`
+	Type     string      `json:"type"`
+	Required bool        `json:"required"`
+	Default  interface{} `json:"default"`
 }

@@ -16,11 +16,11 @@ package tpl
 
 import (
 	"fmt"
-	"github.com/spf13/afero"
-	"github.com/kujtimiihoxha/plis-cli/fs"
-	"reflect"
-	"os"
 	"github.com/Songmu/prompter"
+	"github.com/kujtimiihoxha/plis-cli/fs"
+	"github.com/spf13/afero"
+	"os"
+	"reflect"
 )
 
 func CopyTpl(data string, file string, dest string) error {
@@ -31,13 +31,13 @@ func CopyTpl(data string, file string, dest string) error {
 	if !exists {
 		fs.WorkingDirFs().MkdirAll(dest, os.ModePerm)
 	}
-	exists, err = afero.Exists(fs.WorkingDirFs(),  dest+file)
+	exists, err = afero.Exists(fs.WorkingDirFs(), dest+file)
 	if err != nil {
 		return err
 	}
 	if exists {
 		r, _ := afero.ReadFile(fs.WorkingDirFs(), dest+file)
-		if (reflect.DeepEqual(r, []byte(data))) {
+		if reflect.DeepEqual(r, []byte(data)) {
 			fmt.Printf("The file `%s` is identical and is going to be ignored", dest+file)
 			fmt.Println()
 			return nil
@@ -46,5 +46,5 @@ func CopyTpl(data string, file string, dest string) error {
 			return nil
 		}
 	}
-	return afero.WriteFile(afero.NewBasePathFs(fs.WorkingDirFs(), dest), file, []byte(data), os.ModePerm);
+	return afero.WriteFile(afero.NewBasePathFs(fs.WorkingDirFs(), dest), file, []byte(data), os.ModePerm)
 }

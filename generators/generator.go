@@ -15,9 +15,9 @@
 package generators
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
-	"fmt"
 	"os"
 )
 
@@ -29,17 +29,17 @@ type PlisGenerator struct {
 
 func NewPlisGenerator(cmd *cobra.Command, config *GeneratorConfig, parent *PlisGenerator) *PlisGenerator {
 	return &PlisGenerator{
-		Cmd: cmd,
+		Cmd:    cmd,
 		Config: config,
 		Parent: parent,
 	}
 }
-func (pg *PlisGenerator) GetRootParent() *PlisGenerator{
-	res := pg;
+func (pg *PlisGenerator) GetRootParent() *PlisGenerator {
+	res := pg
 	for res.Parent.Config.Name != "plis" {
 		res = res.Parent
 	}
-	return res;
+	return res
 }
 func (pg *PlisGenerator) ValidateArguments(args []string) {
 	required := 0
@@ -48,7 +48,7 @@ func (pg *PlisGenerator) ValidateArguments(args []string) {
 	}
 	for _, v := range *pg.Config.Arguments {
 		if v.Required {
-			required++;
+			required++
 		}
 	}
 	if len(args) < required {
@@ -61,8 +61,8 @@ func (pg *PlisGenerator) ValidateFlags(c *cobra.Command) {
 		return
 	}
 	for _, v := range *pg.Config.Flags {
-		if !flagChanged(c.Flags(),v.Long) && v.Required{
-			fmt.Println(fmt.Sprintf("Please add required flag , `--%s` is required",v.Long))
+		if !flagChanged(c.Flags(), v.Long) && v.Required {
+			fmt.Println(fmt.Sprintf("Please add required flag , `--%s` is required", v.Long))
 			os.Exit(-1)
 		}
 	}

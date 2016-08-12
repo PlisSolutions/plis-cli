@@ -15,45 +15,46 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/kujtimiihoxha/plis-cli/fs"
-	"os"
 	"fmt"
-	"gopkg.in/flosch/pongo2.v3"
-	"github.com/spf13/afero"
-	"github.com/spf13/viper"
-	"github.com/kujtimiihoxha/plis-cli/helpers"
 	"github.com/Songmu/prompter"
+	"github.com/kujtimiihoxha/plis-cli/fs"
+	"github.com/kujtimiihoxha/plis-cli/helpers"
+	"github.com/spf13/afero"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"gopkg.in/flosch/pongo2.v3"
+	"os"
 )
-var plisFolder string;
+
+var plisFolder string
 var initCmd = &cobra.Command{
-	Use: "init",
+	Use:   "init",
 	Short: "Initiate plis project",
 	Long: `This generator is used to create necessary folders and files for plis to work.
 Init wil generat the plis folder where you can store your generators and the plis config.`,
 }
 
 func init() {
-	initCmd.Flags().StringVarP(&plisFolder,"folder","f","plis","The base plis folder name.")
-	initCmd.RunE = func(cmd *cobra.Command, args []string) error{
+	initCmd.Flags().StringVarP(&plisFolder, "folder", "f", "plis", "The base plis folder name.")
+	initCmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			fmt.Println("Please add the project name as an argument ex. `plis init my-project`")
 			os.Exit(-1)
 		}
-		if a,_ := afero.Exists(fs.WorkingDirFs(),"plis.json") ; a{
-			if !prompter.YN("The plis config file already exists do you want to override it ?",false){
+		if a, _ := afero.Exists(fs.WorkingDirFs(), "plis.json"); a {
+			if !prompter.YN("The plis config file already exists do you want to override it ?", false) {
 				return nil
 			}
 		}
 
-		viper.Set("dir.base",plisFolder)
+		viper.Set("dir.base", plisFolder)
 		name := args[0]
-		if a,_ := afero.Exists(fs.WorkingDirFs(),helpers.BasePath()) ;!a{
-			fs.WorkingDirFs().MkdirAll(helpers.BasePath(),os.ModePerm)
+		if a, _ := afero.Exists(fs.WorkingDirFs(), helpers.BasePath()); !a {
+			fs.WorkingDirFs().MkdirAll(helpers.BasePath(), os.ModePerm)
 
 		}
-		if a,_ := afero.Exists(fs.WorkingDirFs(),helpers.BasePath() + "user/config") ;!a{
-			fs.WorkingDirFs().MkdirAll(helpers.BasePath() + "user/config",os.ModePerm)
+		if a, _ := afero.Exists(fs.WorkingDirFs(), helpers.BasePath()+"user/config"); !a {
+			fs.WorkingDirFs().MkdirAll(helpers.BasePath()+"user/config", os.ModePerm)
 		}
 		config := `{
   "name":"{{ name }}",
@@ -63,13 +64,13 @@ func init() {
     "user":"user"
   }
 }`
-		t,_ := pongo2.FromString(config)
-		s,_:=t.Execute(map[string]interface{}{
-			"name":name,
-			"base":plisFolder,
+		t, _ := pongo2.FromString(config)
+		s, _ := t.Execute(map[string]interface{}{
+			"name": name,
+			"base": plisFolder,
 		})
 
-		return afero.WriteFile(fs.WorkingDirFs(),"plis.json",[]byte(s),os.ModePerm)
+		return afero.WriteFile(fs.WorkingDirFs(), "plis.json", []byte(s), os.ModePerm)
 	}
 	RootCmd.AddCommand(initCmd)
 }

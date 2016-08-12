@@ -16,11 +16,11 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"github.com/spf13/cobra"
-	"github.com/kujtimiihoxha/plis-cli/generators"
 	"github.com/kujtimiihoxha/plis-cli/config"
 	"github.com/kujtimiihoxha/plis-cli/fs"
+	"github.com/kujtimiihoxha/plis-cli/generators"
+	"github.com/spf13/cobra"
+	"os"
 )
 
 // RootCmd represents the base command when called without any subcommands
@@ -40,6 +40,7 @@ Plis is created by @kujtimiihoxha and is written in golang.`,
 	},
 }
 var RootGenerator *generators.PlisGenerator
+
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
@@ -50,18 +51,17 @@ func Execute() {
 }
 
 func init() {
-	RootGenerator = generators.NewPlisGenerator(RootCmd,RootConfig(),nil)
+	RootGenerator = generators.NewPlisGenerator(RootCmd, RootConfig(), nil)
 	config.Init()
 	fs.Init()
 	InitGenerators()
 }
 
-
 func RootConfig() *generators.GeneratorConfig {
 	return &generators.GeneratorConfig{
-		Name:"plis",
+		Name:        "plis",
 		Description: "Plis the most simple code generator framework",
-		DescriptionL:&[]string{
+		DescriptionL: &[]string{
 			"Plis is a framework to create code generators for all types of projects.",
 			"",
 			"Plis is very easy to use and can be used for very simple tasks to very complicated generators.You can use other open",

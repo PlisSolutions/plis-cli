@@ -15,6 +15,14 @@
 package scripts
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/Songmu/prompter"
+	"github.com/iris-contrib/errors"
+	"github.com/kujtimiihoxha/plis-cli/fs"
+	"github.com/kujtimiihoxha/plis-cli/generators"
+	"github.com/kujtimiihoxha/plis-cli/helpers"
+	"github.com/kujtimiihoxha/plis-cli/tpl"
 	anko_core "github.com/mattn/anko/builtins"
 	anko_encoding_json "github.com/mattn/anko/builtins/encoding/json"
 	anko_errors "github.com/mattn/anko/builtins/errors"
@@ -38,25 +46,17 @@ import (
 	anko_strings "github.com/mattn/anko/builtins/strings"
 	anko_time "github.com/mattn/anko/builtins/time"
 	"github.com/mattn/anko/vm"
+	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
-	"fmt"
-	"github.com/kujtimiihoxha/plis-cli/generators"
+	"gopkg.in/alioygur/godash.v0"
+	"gopkg.in/flosch/pongo2.v3"
+	"os"
+	"path"
 	"strconv"
 	"strings"
-	"os"
-	"github.com/spf13/afero"
-	"github.com/kujtimiihoxha/plis-cli/fs"
-	"github.com/kujtimiihoxha/plis-cli/helpers"
-	"encoding/json"
-	"gopkg.in/flosch/pongo2.v3"
-	"path"
-	"github.com/kujtimiihoxha/plis-cli/tpl"
-	"github.com/iris-contrib/errors"
-	"github.com/Songmu/prompter"
-	"gopkg.in/alioygur/godash.v0"
 )
 
-var pkgs  map[string]func(env *vm.Env) *vm.Env;
+var pkgs map[string]func(env *vm.Env) *vm.Env
 
 func Build(env *vm.Env, generator *generators.PlisGenerator, args []string) {
 	anko_core.Import(env)
@@ -82,7 +82,7 @@ func Build(env *vm.Env, generator *generators.PlisGenerator, args []string) {
 		"sort":          anko_sort.Import,
 		"strings":       anko_strings.Import,
 		"time":          anko_time.Import,
-		"plis":          func(env *vm.Env) *vm.Env {
+		"plis": func(env *vm.Env) *vm.Env {
 			return plisModule(env, generator, args)
 		},
 	}
@@ -91,7 +91,7 @@ func Build(env *vm.Env, generator *generators.PlisGenerator, args []string) {
 		if loader, ok := pkgs[s]; ok {
 			m := loader(env)
 			return m
-		} else if loader, ok := pkgs[generator.GetRootParent().Config.Name + "/" + s]; ok {
+		} else if loader, ok := pkgs[generator.GetRootParent().Config.Name+"/"+s]; ok {
 			//Search for the root function ex. angular2 don't use the current all packages will be in the root func.
 			m := loader(env)
 			return m
@@ -99,13 +99,13 @@ func Build(env *vm.Env, generator *generators.PlisGenerator, args []string) {
 		panic(fmt.Sprintf("package '%s' not found", s))
 	})
 	env.Define("register", func(m string, obj map[string]interface{}) {
-		if _, ok :=pkgs[m]; ok  {
+		if _, ok := pkgs[m]; ok {
 			panic(fmt.Sprintf("package '%s' already exists", m))
-		} else if _, ok := pkgs[generator.GetRootParent().Config.Name + "/" + m] ; ok {
+		} else if _, ok := pkgs[generator.GetRootParent().Config.Name+"/"+m]; ok {
 			panic(fmt.Sprintf("package '%s' already exists", m))
 		}
 		//Search for the root function ex. angular2 don't use the current all packages will be in the root func.
-		pkgs[generator.GetRootParent().Config.Name + "/" + m] = func(env *vm.Env) *vm.Env {
+		pkgs[generator.GetRootParent().Config.Name+"/"+m] = func(env *vm.Env) *vm.Env {
 			md := env.NewModule(m)
 			for k, v := range obj {
 				md.Define(k, v)
@@ -115,7 +115,7 @@ func Build(env *vm.Env, generator *generators.PlisGenerator, args []string) {
 	})
 }
 func addUserConfig(plis *vm.Env, command string) {
-	data,err := afero.ReadFile(fs.WorkingDirFs(),helpers.GeneratorUserConfigPath(command))
+	data, err := afero.ReadFile(fs.WorkingDirFs(), helpers.GeneratorUserConfigPath(command))
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Could not read config from `%s`", helpers.GeneratorUserConfigPath(command)))
 		os.Exit(-1)
@@ -125,87 +125,87 @@ func addUserConfig(plis *vm.Env, command string) {
 		fmt.Println(fmt.Sprintf("Could not read json from `%s`", helpers.GeneratorUserConfigPath(command)))
 		os.Exit(-1)
 	}
-	plis.Define("UserConfig",*config)
+	plis.Define("UserConfig", *config)
 }
-func templateFunctions(plis *vm.Env,gen *generators.PlisGenerator) {
+func templateFunctions(plis *vm.Env, gen *generators.PlisGenerator) {
 	fs.InitTemplatesDirFs(gen.Config.Name)
 	pongo := pongo2.NewSet(gen.Config.Name)
 	pongo.SetBaseDirectory(helpers.GeneratorTemplatePath(gen.Config.Name))
-	plis.Define("CopyTpl", func(t string,dest string,context map[string]interface{}) error {
-		a,_:=afero.IsDir(fs.TemplatesDirFs(),t)
+	plis.Define("CopyTpl", func(t string, dest string, context map[string]interface{}) error {
+		a, _ := afero.IsDir(fs.TemplatesDirFs(), t)
 		if a {
 			return errors.New("The path must be to a file, please use `CopyAll` to copy complete folders.")
 		}
 		pongo.FromFile(t)
 		filename := path.Base(t)
-		t = strings.TrimPrefix(t,".")
-		t = strings.TrimPrefix(t,"./")
-		t = strings.TrimPrefix(t,"/")
-		data,err:=afero.ReadFile(fs.TemplatesDirFs(),t)
-		if err != nil {
-			return  err;
-		}
-		temp,err := pongo.FromString(string(data))
+		t = strings.TrimPrefix(t, ".")
+		t = strings.TrimPrefix(t, "./")
+		t = strings.TrimPrefix(t, "/")
+		data, err := afero.ReadFile(fs.TemplatesDirFs(), t)
 		if err != nil {
 			return err
 		}
-		res,err := temp.Execute(context)
+		temp, err := pongo.FromString(string(data))
+		if err != nil {
+			return err
+		}
+		res, err := temp.Execute(context)
 		if err != nil {
 			return err
 		}
 		destExt := path.Ext(dest)
 		if destExt == "" {
-			filename = strings.Replace(filename,".tpl","",-1)
+			filename = strings.Replace(filename, ".tpl", "", -1)
 		} else {
 			filename = path.Base(dest)
 			dest = path.Dir(dest)
 		}
-		return tpl.CopyTpl(res,filename,dest)
+		return tpl.CopyTpl(res, filename, dest)
 	})
-	plis.Define("CopyAll", func(v string,dest string,context map[string]interface{}) error{
-		v = strings.TrimPrefix(v,".")
-		v = strings.TrimPrefix(v,"./")
-		v = strings.TrimPrefix(v,"/")
-		v = strings.TrimSuffix(v,"/")
-		dest = strings.TrimPrefix(dest,"/")
-		dest = strings.TrimSuffix(dest,"/")
-		a,err:=afero.IsDir(fs.TemplatesDirFs(),v)
+	plis.Define("CopyAll", func(v string, dest string, context map[string]interface{}) error {
+		v = strings.TrimPrefix(v, ".")
+		v = strings.TrimPrefix(v, "./")
+		v = strings.TrimPrefix(v, "/")
+		v = strings.TrimSuffix(v, "/")
+		dest = strings.TrimPrefix(dest, "/")
+		dest = strings.TrimSuffix(dest, "/")
+		a, err := afero.IsDir(fs.TemplatesDirFs(), v)
 		if !a || err != nil {
 			return errors.New("This template folder does not exist")
 		}
 		if path.Ext(dest) != "" {
 			return errors.New("The destination path must be a folder")
 		}
-		tpls ,err:= getTemplates(gen.Config.Name,v)
+		tpls, err := getTemplates(gen.Config.Name, v)
 		if err != nil {
 			return err
 		}
 
-		for _,t := range tpls {
+		for _, t := range tpls {
 			filename := path.Base(t)
 			directory := path.Dir(t)
-			data,err:=afero.ReadFile(fs.TemplatesDirFs(),t)
-			if err != nil {
-				return  err;
-			}
-			temp,err := pongo.FromString(string(data))
+			data, err := afero.ReadFile(fs.TemplatesDirFs(), t)
 			if err != nil {
 				return err
 			}
-			res,err := temp.Execute(context)
+			temp, err := pongo.FromString(string(data))
+			if err != nil {
+				return err
+			}
+			res, err := temp.Execute(context)
 			if err != nil {
 				return err
 			}
 			if v != "" {
-				dirParts := strings.Split(directory,"/")
+				dirParts := strings.Split(directory, "/")
 				directory = ""
-				for _,v:= range dirParts[1:] {
+				for _, v := range dirParts[1:] {
 					directory += v + "/"
 				}
 			}
-			filename = strings.Replace(filename,".tpl","",-1)
-			directory = strings.TrimSuffix(directory,".")
-			err = tpl.CopyTpl(res,filename,dest + "/" + directory)
+			filename = strings.Replace(filename, ".tpl", "", -1)
+			directory = strings.TrimSuffix(directory, ".")
+			err = tpl.CopyTpl(res, filename, dest+"/"+directory)
 			if err != nil {
 				return err
 			}
@@ -214,10 +214,10 @@ func templateFunctions(plis *vm.Env,gen *generators.PlisGenerator) {
 
 	})
 }
-func getTemplates(generator  string, p string) ([]string, error) {
+func getTemplates(generator string, p string) ([]string, error) {
 	files := []string{}
 	err := afero.Walk(fs.WorkingDirFs(), helpers.GeneratorTemplateFile(generator, p), func(path string, info os.FileInfo, err error) error {
-		if info !=nil && !info.IsDir() {
+		if info != nil && !info.IsDir() {
 			path = strings.Replace(path, "\\", "/", -1)
 			files = append(files, strings.Replace(path, strings.Replace(helpers.GeneratorTemplatePath(generator), "\\", "/", -1), "", -1))
 		}
@@ -227,29 +227,29 @@ func getTemplates(generator  string, p string) ([]string, error) {
 }
 func plisModule(env *vm.Env, gen *generators.PlisGenerator, args []string) *vm.Env {
 	plis := env.NewPackage("plis")
-	arguments := map[string]interface{}{};
-	flags := map[string]interface{}{};
+	arguments := map[string]interface{}{}
+	flags := map[string]interface{}{}
 	if gen.Config.Arguments != nil && len(*gen.Config.Arguments) > 0 {
 		for i, v := range args {
 			arguments[(*gen.Config.Arguments)[i].Name] = argumentToType(v, (*gen.Config.Arguments)[i].Name, (*gen.Config.Arguments)[i].Type)
 		}
 	}
-	if (gen.Config.Flags != nil) {
+	if gen.Config.Flags != nil {
 		for _, v := range *gen.Config.Flags {
 			flags[v.Long] = flagToType(v.Long, gen.Cmd, v.Type)
 		}
 	}
-	addPersistentFlags(gen,&flags)
+	addPersistentFlags(gen, &flags)
 	plis.Define("Args", arguments)
 	plis.Define("Flags", flags)
-	addUserConfig(plis,gen.GetRootParent().Config.Name)
-	templateFunctions(plis,gen)
+	addUserConfig(plis, gen.GetRootParent().Config.Name)
+	templateFunctions(plis, gen)
 	plis.Define("Help", gen.Cmd.Help)
 	addGoDashFuncs(plis)
 	addPrompterFuncs(plis)
 	return plis
 }
-func addGoDashFuncs(plis *vm.Env)  {
+func addGoDashFuncs(plis *vm.Env) {
 	str := make(map[string]interface{})
 	str["IsASCII"] = godash.IsASCII
 	str["IsAlpha"] = godash.IsAlpha
@@ -313,18 +313,18 @@ func addGoDashFuncs(plis *vm.Env)  {
 	str["IsUpperCase"] = godash.IsUpperCase
 	str["IsVariableWidth"] = godash.IsVariableWidth
 	str["IsWhole"] = godash.IsWhole
-	str["ToCamelCase"] = godash.ToCamelCase;
-	str["ToString"] = godash.ToString;
-	str["ToBoolean"] = godash.ToBoolean;
-	str["ToSnakeCase"] = godash.ToSnakeCase;
-	str["ToFloat"] = godash.ToFloat;
-	str["ToInt"] = godash.ToInt;
-	str["ToJSON"] = godash.ToJSON;
+	str["ToCamelCase"] = godash.ToCamelCase
+	str["ToString"] = godash.ToString
+	str["ToBoolean"] = godash.ToBoolean
+	str["ToSnakeCase"] = godash.ToSnakeCase
+	str["ToFloat"] = godash.ToFloat
+	str["ToInt"] = godash.ToInt
+	str["ToJSON"] = godash.ToJSON
 	str["ToKebabCase"] = func(t string) string {
 		return strings.Replace(godash.ToSnakeCase(t), "_", "-", -1)
 	}
 	str["ToLowerFirst"] = func(t string) string {
-		str := strings.ToLower(string(t[0]));
+		str := strings.ToLower(string(t[0]))
 		additional := string(t[1:])
 
 		return str + additional
@@ -333,29 +333,29 @@ func addGoDashFuncs(plis *vm.Env)  {
 		if t == "" {
 			return make([]string, 0)
 		}
-		str := strings.Split(t, s);
+		str := strings.Split(t, s)
 		return str
 	}
-	plis.Define("Strings",str)
+	plis.Define("Strings", str)
 }
-func addPrompterFuncs(plis *vm.Env)  {
+func addPrompterFuncs(plis *vm.Env) {
 	pr := make(map[string]interface{})
-	pr["Prompt"] = prompter.Prompt;
-	pr["Choose"] = prompter.Choose;
-	pr["Password"] = prompter.Password;
-	pr["YN"] = prompter.YN;
-	pr["YesNo"] = prompter.YesNo;
-	plis.Define("Prompter",pr)
+	pr["Prompt"] = prompter.Prompt
+	pr["Choose"] = prompter.Choose
+	pr["Password"] = prompter.Password
+	pr["YN"] = prompter.YN
+	pr["YesNo"] = prompter.YesNo
+	plis.Define("Prompter", pr)
 }
-func addPersistentFlags(gen *generators.PlisGenerator, flags  *map[string]interface{})  {
+func addPersistentFlags(gen *generators.PlisGenerator, flags *map[string]interface{}) {
 	current := gen.Parent
 	for current.Config.Name != "plis" {
 		if current.Config.Flags == nil {
 			continue
 		}
-		for _,v := range *current.Config.Flags {
+		for _, v := range *current.Config.Flags {
 			if v.Persistent {
-				(*flags)[v.Long] = flagToType(v.Long,gen.Cmd,v.Type)
+				(*flags)[v.Long] = flagToType(v.Long, gen.Cmd, v.Type)
 			}
 		}
 		current = current.Parent

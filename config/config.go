@@ -15,15 +15,15 @@
 package config
 
 import (
-	"github.com/spf13/viper"
 	"fmt"
+	"github.com/spf13/viper"
 )
 
 func Init() {
 	viper.SetConfigName("plis") // name of config file (without extension)
 	viper.SetConfigType("json")
-	viper.AddConfigPath("./")  // adding home directory as first search path
-	viper.AutomaticEnv()          // read in environment variables that match
+	viper.AddConfigPath("./") // adding home directory as first search path
+	viper.AutomaticEnv()      // read in environment variables that match
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
@@ -32,8 +32,8 @@ func Init() {
 	}
 }
 func defaults() {
-	viper.Set("dir.base","plis")
-	viper.Set("dir.generators","generators")
-	viper.Set("dir.user","user")
-	viper.Set("dir.config","config")
+	viper.Set("dir.base", "plis")
+	viper.Set("dir.generators", "generators")
+	viper.Set("dir.user", "user")
+	viper.Set("dir.config", "config")
 }

@@ -15,37 +15,37 @@
 package cmd
 
 import (
-	"github.com/spf13/afero"
-	"github.com/kujtimiihoxha/plis-cli/fs"
-	"github.com/kujtimiihoxha/plis-cli/helpers"
-	"github.com/kujtimiihoxha/plis-cli/generators"
-	"github.com/spf13/cobra"
-	"github.com/mattn/anko/vm"
-	"github.com/kujtimiihoxha/plis-cli/scripts"
 	"fmt"
+	"github.com/kujtimiihoxha/plis-cli/fs"
+	"github.com/kujtimiihoxha/plis-cli/generators"
+	"github.com/kujtimiihoxha/plis-cli/helpers"
+	"github.com/kujtimiihoxha/plis-cli/scripts"
+	"github.com/mattn/anko/vm"
+	"github.com/spf13/afero"
+	"github.com/spf13/cobra"
 	"os"
 )
 
 func InitGenerators() {
-	if ex,_ := afero.Exists(fs.WorkingDirFs(),helpers.GeneratorsPath()); !ex {
+	if ex, _ := afero.Exists(fs.WorkingDirFs(), helpers.GeneratorsPath()); !ex {
 		return
 	}
-	d,_ :=afero.ReadDir(fs.WorkingDirFs(),helpers.GeneratorsPath())
-	for _,v:=range d {
-		CreateGenerator(helpers.RootGeneratorConfig(v.Name()),helpers.RootGeneratorScript(v.Name()),RootGenerator)
+	d, _ := afero.ReadDir(fs.WorkingDirFs(), helpers.GeneratorsPath())
+	for _, v := range d {
+		CreateGenerator(helpers.RootGeneratorConfig(v.Name()), helpers.RootGeneratorScript(v.Name()), RootGenerator)
 	}
 }
-func CreateGenerator(generatorConfigPath string, generatorScriptPath string,parent *generators.PlisGenerator) {
-	config := generators.ReadConfig(fs.WorkingDirFs(),generatorConfigPath)
-	cmd:= createCmd(config)
-	generator:= generators.NewPlisGenerator(cmd,config,parent)
+func CreateGenerator(generatorConfigPath string, generatorScriptPath string, parent *generators.PlisGenerator) {
+	config := generators.ReadConfig(fs.WorkingDirFs(), generatorConfigPath)
+	cmd := createCmd(config)
+	generator := generators.NewPlisGenerator(cmd, config, parent)
 	addFlags(generator)
-	createRunFunction(generator,generatorScriptPath)
+	createRunFunction(generator, generatorScriptPath)
 	if generator.Config.SubCommands != nil {
-		for _,v:=range *generator.Config.SubCommands{
+		for _, v := range *generator.Config.SubCommands {
 			CreateGenerator(
-				helpers.ChildGeneratorConfig( generator.GetRootParent().Config.Name,v),
-				helpers.ChildGeneratorScript( generator.GetRootParent().Config.Name,v),
+				helpers.ChildGeneratorConfig(generator.GetRootParent().Config.Name, v),
+				helpers.ChildGeneratorScript(generator.GetRootParent().Config.Name, v),
 				generator)
 		}
 	}
@@ -53,27 +53,27 @@ func CreateGenerator(generatorConfigPath string, generatorScriptPath string,pare
 	//Todo add children.
 	parent.Cmd.AddCommand(generator.Cmd)
 }
-func createRunFunction(gen *generators.PlisGenerator, generatorScriptPath string)  {
+func createRunFunction(gen *generators.PlisGenerator, generatorScriptPath string) {
 	gen.Cmd.Run = func(c *cobra.Command, args []string) {
 		gen.ValidateArguments(args)
 		gen.ValidateFlags(c)
 		var env = vm.NewEnv()
-		scripts.Build(env,gen ,args);
+		scripts.Build(env, gen, args)
 		if gen.GetRootParent().Config.Modules != nil {
-			for _,v := range * gen.GetRootParent().Config.Modules {
-				data,err := afero.ReadFile(fs.WorkingDirFs(),helpers.GeneratorModulesFile(gen.GetRootParent().Config.Name,v))
+			for _, v := range *gen.GetRootParent().Config.Modules {
+				data, err := afero.ReadFile(fs.WorkingDirFs(), helpers.GeneratorModulesFile(gen.GetRootParent().Config.Name, v))
 				if err != nil {
-					fmt.Println(fmt.Sprintf("Could not read module '%s' ",v))
+					fmt.Println(fmt.Sprintf("Could not read module '%s' ", v))
 					os.Exit(-1)
 				}
 				_, err = env.Execute(string(data))
 				if err != nil {
-					fmt.Println(fmt.Sprintf("Error while executing module '%s' ",v),err)
+					fmt.Println(fmt.Sprintf("Error while executing module '%s' ", v), err)
 					os.Exit(-1)
 				}
 			}
 		}
-		data,err := afero.ReadFile(fs.WorkingDirFs(),generatorScriptPath)
+		data, err := afero.ReadFile(fs.WorkingDirFs(), generatorScriptPath)
 		if err != nil {
 			fmt.Println("Could not read generator script")
 			os.Exit(-1)
@@ -86,16 +86,16 @@ func createRunFunction(gen *generators.PlisGenerator, generatorScriptPath string
 	}
 }
 func addFlags(gen *generators.PlisGenerator) {
-	if  gen.Config.Flags == nil {
+	if gen.Config.Flags == nil {
 		return
 	}
-	for _,v := range *gen.Config.Flags {
+	for _, v := range *gen.Config.Flags {
 		switch v.Type {
 		case "string":
-			var df interface{};
+			var df interface{}
 			if v.Default != nil {
 				df = *v.Default
-				_,ok := df.(string)
+				_, ok := df.(string)
 				if !ok {
 					fmt.Println(
 						fmt.Sprintf(
@@ -108,15 +108,15 @@ func addFlags(gen *generators.PlisGenerator) {
 				df = ""
 			}
 			if v.Persistent {
-				gen.Cmd.PersistentFlags().StringP(v.Long,v.Short,df.(string),v.Description)
+				gen.Cmd.PersistentFlags().StringP(v.Long, v.Short, df.(string), v.Description)
 			} else {
-				gen.Cmd.Flags().StringP(v.Long,v.Short,df.(string),v.Description)
+				gen.Cmd.Flags().StringP(v.Long, v.Short, df.(string), v.Description)
 			}
 		case "int":
-			var df interface{};
+			var df interface{}
 			if v.Default != nil {
 				df = *v.Default
-				_,ok  := df.(float64)
+				_, ok := df.(float64)
 				if !ok {
 					fmt.Println(
 						fmt.Sprintf(
@@ -129,15 +129,15 @@ func addFlags(gen *generators.PlisGenerator) {
 				df = 0.0
 			}
 			if v.Persistent {
-				gen.Cmd.PersistentFlags().Int64P(v.Long,v.Short,int64(df.(float64)),v.Description)
+				gen.Cmd.PersistentFlags().Int64P(v.Long, v.Short, int64(df.(float64)), v.Description)
 			} else {
-				gen.Cmd.Flags().Int64P(v.Long,v.Short,int64(df.(float64)),v.Description)
+				gen.Cmd.Flags().Int64P(v.Long, v.Short, int64(df.(float64)), v.Description)
 			}
 		case "float":
-			var df interface{};
+			var df interface{}
 			if v.Default != nil {
 				df = *v.Default
-				_,ok  := df.(float64)
+				_, ok := df.(float64)
 				if !ok {
 					fmt.Println(
 						fmt.Sprintf(
@@ -150,15 +150,15 @@ func addFlags(gen *generators.PlisGenerator) {
 				df = 0
 			}
 			if v.Persistent {
-				gen.Cmd.PersistentFlags().Float64P(v.Long,v.Short,df.(float64),v.Description)
+				gen.Cmd.PersistentFlags().Float64P(v.Long, v.Short, df.(float64), v.Description)
 			} else {
-				gen.Cmd.Flags().Float64P(v.Long,v.Short,df.(float64),v.Description)
+				gen.Cmd.Flags().Float64P(v.Long, v.Short, df.(float64), v.Description)
 			}
 		case "bool":
-			var df interface{};
+			var df interface{}
 			if v.Default != nil {
 				df = *v.Default
-				_,ok:= df.(bool)
+				_, ok := df.(bool)
 				if !ok {
 					fmt.Println(
 						fmt.Sprintf(
@@ -171,15 +171,15 @@ func addFlags(gen *generators.PlisGenerator) {
 				df = false
 			}
 			if v.Persistent {
-				gen.Cmd.PersistentFlags().BoolP(v.Long,v.Short,df.(bool),v.Description)
+				gen.Cmd.PersistentFlags().BoolP(v.Long, v.Short, df.(bool), v.Description)
 			} else {
-				gen.Cmd.Flags().BoolP(v.Long,v.Short,df.(bool),v.Description)
+				gen.Cmd.Flags().BoolP(v.Long, v.Short, df.(bool), v.Description)
 			}
 		default:
 			if v.Persistent {
-				gen.Cmd.PersistentFlags().StringP(v.Long,v.Short,"",v.Description)
+				gen.Cmd.PersistentFlags().StringP(v.Long, v.Short, "", v.Description)
 			} else {
-				gen.Cmd.Flags().StringP(v.Long,v.Short,"",v.Description)
+				gen.Cmd.Flags().StringP(v.Long, v.Short, "", v.Description)
 			}
 		}
 	}
@@ -191,7 +191,7 @@ func createCmd(config *generators.GeneratorConfig) *cobra.Command {
 	if config.DescriptionL != nil {
 		cmd.Long = config.LongDescription()
 	}
-	if config.Aliases != nil{
+	if config.Aliases != nil {
 		cmd.Aliases = *config.Aliases
 	}
 	return cmd

@@ -15,25 +15,25 @@
 package generators
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/kujtimiihoxha/plis-cli/generators/cmd"
 	"github.com/spf13/afero"
-	"fmt"
 	"os"
-	"encoding/json"
 )
 
 type GeneratorConfig struct {
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	DescriptionL *[]string `json:"description_l"`
-	Aliases      *[]string `json:"aliases"`
-	Flags        *[]cmd.PlisFlag `json:"flags"`
-	Modules      *[]string `json:"modules"`
+	Name         string              `json:"name"`
+	Description  string              `json:"description"`
+	DescriptionL *[]string           `json:"description_l"`
+	Aliases      *[]string           `json:"aliases"`
+	Flags        *[]cmd.PlisFlag     `json:"flags"`
+	Modules      *[]string           `json:"modules"`
 	Arguments    *[]cmd.PlisArgument `json:"args"`
-	SubCommands  *[]string `json:"sub_commands,omitempty"`
+	SubCommands  *[]string           `json:"sub_commands,omitempty"`
 }
 
-func (gc *GeneratorConfig)LongDescription() (description string) {
+func (gc *GeneratorConfig) LongDescription() (description string) {
 	if gc.DescriptionL == nil {
 		return
 	}
@@ -56,7 +56,7 @@ func ReadConfig(fs afero.Fs, pth string) *GeneratorConfig {
 	}
 	if config.Flags != nil {
 		for _, v := range *config.Flags {
-			if (v.Long == "") {
+			if v.Long == "" {
 				fmt.Println("Flag needs a Long name")
 				os.Exit(-1)
 			}
@@ -64,7 +64,7 @@ func ReadConfig(fs afero.Fs, pth string) *GeneratorConfig {
 	}
 	if config.Arguments != nil {
 		for _, v := range *config.Arguments {
-			if (v.Name == "") {
+			if v.Name == "" {
 				fmt.Println("Argument needs a Name.")
 				os.Exit(-1)
 			}

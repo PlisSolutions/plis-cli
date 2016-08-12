@@ -15,12 +15,11 @@
 package cmd
 
 type PlisFlag struct {
-	Long string `json:"long"`
-	Short string `json:"short"`
-	Description string `json:"description"`
-	Required bool `json:"required"`
-	Persistent bool `json:"persistent"`
-	Default *interface{} `json:"default"`
-	Type string `json:"type"`
-
+	Long        string       `json:"long"`
+	Short       string       `json:"short"`
+	Description string       `json:"description"`
+	Required    bool         `json:"required"`
+	Persistent  bool         `json:"persistent"`
+	Default     *interface{} `json:"default"`
+	Type        string       `json:"type"`
 }

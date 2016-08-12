@@ -15,12 +15,12 @@
 package fs
 
 import (
-	"github.com/spf13/afero"
 	"github.com/kujtimiihoxha/plis-cli/helpers"
+	"github.com/spf13/afero"
 )
 
-var(
-	workingDirFs afero.Fs
+var (
+	workingDirFs           afero.Fs
 	generatorTemplateDirFs afero.Fs
 )
 
@@ -28,13 +28,13 @@ func Init() {
 	workingDirFs = &afero.OsFs{}
 }
 func WorkingDirFs() afero.Fs {
-	return workingDirFs;
+	return workingDirFs
 }
 func TemplatesDirFs() afero.Fs {
-	return generatorTemplateDirFs;
+	return generatorTemplateDirFs
 }
 
-func InitTemplatesDirFs(generator string){
+func InitTemplatesDirFs(generator string) {
 	generatorTemplateDirFs = afero.NewBasePathFs(workingDirFs, helpers.GeneratorTemplatePath(generator))
 }
 

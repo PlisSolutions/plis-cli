@@ -55,11 +55,11 @@ func GeneratorModulesPath(generator string) string {
 func GeneratorTemplatePath(generator string) string {
 	return RootGeneratorPath(generator) + "templates" + "/"
 }
-func GeneratorTemplateFile(generator string,file string) string {
+func GeneratorTemplateFile(generator string, file string) string {
 	return RootGeneratorPath(generator) + "templates" + "/" + file
 }
 func GeneratorModulesFile(generator string, module string) string {
-	return GeneratorModulesPath(generator)  + module + ".plis"
+	return GeneratorModulesPath(generator) + module + ".plis"
 }
 func BasePath() string {
 	return viper.GetString("dir.base") + "/"
