@@ -28,16 +28,16 @@ func CopyTpl(data string, file string, dest string) error {
 	if !exists {
 		fs.WorkingDirFs().MkdirAll(dest, os.ModePerm)
 	}
-	fl := dest+"/"+file
+	fl := dest + "/" + file
 	if dest == "" {
 		fl = file
 	}
-	exists, _ = afero.Exists(fs.WorkingDirFs(),fl)
+	exists, _ = afero.Exists(fs.WorkingDirFs(), fl)
 	fmt.Println(dest)
 	if exists {
 		r, _ := afero.ReadFile(fs.WorkingDirFs(), fl)
 		if reflect.DeepEqual(r, []byte(data)) {
-			fmt.Printf("The file `%s` is identical and is going to be ignored",fl)
+			fmt.Printf("The file `%s` is identical and is going to be ignored", fl)
 			fmt.Println()
 			return nil
 		}
@@ -46,7 +46,7 @@ func CopyTpl(data string, file string, dest string) error {
 		}
 	}
 
-	if dest == "." || dest == ""|| dest == "/" {
+	if dest == "." || dest == "" || dest == "/" {
 		return afero.WriteFile(fs.WorkingDirFs(), file, []byte(data), os.ModePerm)
 	}
 	return afero.WriteFile(afero.NewBasePathFs(fs.WorkingDirFs(), dest), file, []byte(data), os.ModePerm)

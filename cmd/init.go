@@ -22,10 +22,10 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/alioygur/godash.v0"
 	"gopkg.in/flosch/pongo2.v3"
 	"os"
 	"strings"
-	"gopkg.in/alioygur/godash.v0"
 )
 
 var plisFolder string
@@ -68,7 +68,7 @@ func init() {
 }`
 		t, _ := pongo2.FromString(config)
 		s, _ := t.Execute(map[string]interface{}{
-			"name":  strings.Replace(godash.ToSnakeCase(name), "_", "-", -1),
+			"name": strings.Replace(godash.ToSnakeCase(name), "_", "-", -1),
 			"base": plisFolder,
 		})
 
