@@ -17,7 +17,6 @@ package config
 import (
 	"github.com/spf13/viper"
 	"fmt"
-	"os"
 )
 
 func Init() {
@@ -29,7 +28,12 @@ func Init() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	} else {
-		fmt.Println("No plis configuration file found. Please run `plis init` to initiate plis.")
-		os.Exit(-1)
+		defaults()
 	}
+}
+func defaults() {
+	viper.Set("dir.base","plis")
+	viper.Set("dir.generators","generators")
+	viper.Set("dir.user","user")
+	viper.Set("dir.config","config")
 }

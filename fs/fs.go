@@ -21,21 +21,23 @@ import (
 
 var(
 	workingDirFs afero.Fs
-	generatorDirFs afero.Fs
+	generatorTemplateDirFs afero.Fs
 )
 
 func Init() {
-	InitDefaultFs()
-}
-func InitDefaultFs()  {
 	workingDirFs = &afero.OsFs{}
-}
-func InitGeneratorFs(generatorName string) {
-	generatorDirFs = afero.NewBasePathFs(workingDirFs, helpers.RootGeneratorPath(generatorName))
 }
 func WorkingDirFs() afero.Fs {
 	return workingDirFs;
 }
-func GeneratorDirFs() afero.Fs {
-	return generatorDirFs;
+func TemplatesDirFs() afero.Fs {
+	return generatorTemplateDirFs;
+}
+
+func InitTemplatesDirFs(generator string){
+	generatorTemplateDirFs = afero.NewBasePathFs(workingDirFs, helpers.GeneratorTemplatePath(generator))
+}
+
+func SetToMemSystem() {
+	workingDirFs = afero.NewMemMapFs()
 }

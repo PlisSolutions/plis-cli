@@ -16,52 +16,51 @@ package helpers
 
 import (
 	"github.com/spf13/viper"
-	"github.com/spf13/afero"
 )
 
 func GeneratorsPath() string {
-	return BasePath() + viper.GetString("dir.generators") + afero.FilePathSeparator
+	return BasePath() + viper.GetString("dir.generators") + "/"
 }
 func RootGeneratorPath(generator string) string {
-	return GeneratorsPath() + generator + afero.FilePathSeparator
+	return GeneratorsPath() + generator + "/"
 }
 func RootGeneratorConfig(generator string) string {
-	return GeneratorsPath() + generator + afero.FilePathSeparator + generator + ".json"
+	return GeneratorsPath() + generator + "/" + generator + ".json"
 }
 func RootGeneratorScript(generator string) string {
-	return GeneratorsPath() + generator + afero.FilePathSeparator + generator + ".plis"
+	return GeneratorsPath() + generator + "/" + generator + ".plis"
 }
 func ChildGeneratorConfigPath(generator string) string {
-	return RootGeneratorPath(generator) + "config" + afero.FilePathSeparator
+	return RootGeneratorPath(generator) + "config" + "/"
 }
 func GeneratorScriptsPath(generator string) string {
-	return RootGeneratorPath(generator) + "scripts" + afero.FilePathSeparator
+	return RootGeneratorPath(generator) + "scripts" + "/"
 }
 func GeneratorTemplatesPath(generator string) string {
-	return RootGeneratorPath(generator) + "templates" + afero.FilePathSeparator
+	return RootGeneratorPath(generator) + "templates" + "/"
 }
 func ChildGeneratorConfig(generator string, child string) string {
-	return RootGeneratorPath(generator) + "config" + afero.FilePathSeparator + child + ".json"
+	return RootGeneratorPath(generator) + "config" + "/" + child + ".json"
 }
 func ChildGeneratorScript(generator string, child string) string {
-	return RootGeneratorPath(generator) + "scripts" + afero.FilePathSeparator + child + ".plis"
+	return RootGeneratorPath(generator) + "scripts" + "/" + child + ".plis"
 }
 func GeneratorUserConfigPath(command string) string {
-	return BasePath() + viper.GetString("dir.user") + afero.FilePathSeparator +
-		"config" + afero.FilePathSeparator + command + ".json"
+	return BasePath() + viper.GetString("dir.user") + "/" +
+		"config" + "/" + command + ".json"
 }
 func GeneratorModulesPath(generator string) string {
-	return RootGeneratorPath(generator) + "modules" + afero.FilePathSeparator
+	return RootGeneratorPath(generator) + "modules" + "/"
 }
 func GeneratorTemplatePath(generator string) string {
-	return RootGeneratorPath(generator) + "templates" + afero.FilePathSeparator
+	return RootGeneratorPath(generator) + "templates" + "/"
 }
 func GeneratorTemplateFile(generator string,file string) string {
-	return RootGeneratorPath(generator) + "templates" + afero.FilePathSeparator + file
+	return RootGeneratorPath(generator) + "templates" + "/" + file
 }
 func GeneratorModulesFile(generator string, module string) string {
 	return GeneratorModulesPath(generator)  + module + ".plis"
 }
 func BasePath() string {
-	return viper.GetString("dir.base") + afero.FilePathSeparator
+	return viper.GetString("dir.base") + "/"
 }

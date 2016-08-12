@@ -42,6 +42,7 @@ import (
 	"fmt"
 	"github.com/kujtimiihoxha/plis-cli/generators"
 	"strconv"
+	"strings"
 	"os"
 	"github.com/spf13/afero"
 	"github.com/kujtimiihoxha/plis-cli/fs"
@@ -49,6 +50,10 @@ import (
 	"encoding/json"
 	"gopkg.in/flosch/pongo2.v3"
 	"path"
+	"github.com/kujtimiihoxha/plis-cli/tpl"
+	"github.com/iris-contrib/errors"
+	"github.com/Songmu/prompter"
+	"gopkg.in/alioygur/godash.v0"
 )
 
 var pkgs  map[string]func(env *vm.Env) *vm.Env;
@@ -123,17 +128,102 @@ func addUserConfig(plis *vm.Env, command string) {
 	plis.Define("UserConfig",*config)
 }
 func templateFunctions(plis *vm.Env,gen *generators.PlisGenerator) {
+	fs.InitTemplatesDirFs(gen.Config.Name)
 	pongo := pongo2.NewSet(gen.Config.Name)
 	pongo.SetBaseDirectory(helpers.GeneratorTemplatePath(gen.Config.Name))
-	plis.Define("CopyTpl", func(t string,dest string,data map[string]interface{}) error {
+	plis.Define("CopyTpl", func(t string,dest string,context map[string]interface{}) error {
+		a,_:=afero.IsDir(fs.TemplatesDirFs(),t)
+		if a {
+			return errors.New("The path must be to a file, please use `CopyAll` to copy complete folders.")
+		}
 		pongo.FromFile(t)
-
-		fmt.Println(path.Base(t),path.Dir(t))
-		return nil;
+		filename := path.Base(t)
+		t = strings.TrimPrefix(t,".")
+		t = strings.TrimPrefix(t,"./")
+		t = strings.TrimPrefix(t,"/")
+		data,err:=afero.ReadFile(fs.TemplatesDirFs(),t)
+		if err != nil {
+			return  err;
+		}
+		temp,err := pongo.FromString(string(data))
+		if err != nil {
+			return err
+		}
+		res,err := temp.Execute(context)
+		if err != nil {
+			return err
+		}
+		destExt := path.Ext(dest)
+		if destExt == "" {
+			filename = strings.Replace(filename,".tpl","",-1)
+		} else {
+			filename = path.Base(dest)
+			dest = path.Dir(dest)
+		}
+		return tpl.CopyTpl(res,filename,dest)
 	})
-	//plis.Define("CopyAll", func(t string,dest string,data map[string]interface{}) error{
-	//	return tpl.CopyAll(pongo,gen.Config.Name,t,dest,data)
-	//})
+	plis.Define("CopyAll", func(v string,dest string,context map[string]interface{}) error{
+		v = strings.TrimPrefix(v,".")
+		v = strings.TrimPrefix(v,"./")
+		v = strings.TrimPrefix(v,"/")
+		v = strings.TrimSuffix(v,"/")
+		dest = strings.TrimPrefix(dest,"/")
+		dest = strings.TrimSuffix(dest,"/")
+		a,err:=afero.IsDir(fs.TemplatesDirFs(),v)
+		if !a || err != nil {
+			return errors.New("This template folder does not exist")
+		}
+		if path.Ext(dest) != "" {
+			return errors.New("The destination path must be a folder")
+		}
+		tpls ,err:= getTemplates(gen.Config.Name,v)
+		if err != nil {
+			return err
+		}
+
+		for _,t := range tpls {
+			filename := path.Base(t)
+			directory := path.Dir(t)
+			data,err:=afero.ReadFile(fs.TemplatesDirFs(),t)
+			if err != nil {
+				return  err;
+			}
+			temp,err := pongo.FromString(string(data))
+			if err != nil {
+				return err
+			}
+			res,err := temp.Execute(context)
+			if err != nil {
+				return err
+			}
+			if v != "" {
+				dirParts := strings.Split(directory,"/")
+				directory = ""
+				for _,v:= range dirParts[1:] {
+					directory += v + "/"
+				}
+			}
+			filename = strings.Replace(filename,".tpl","",-1)
+			directory = strings.TrimSuffix(directory,".")
+			err = tpl.CopyTpl(res,filename,dest + "/" + directory)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+
+	})
+}
+func getTemplates(generator  string, p string) ([]string, error) {
+	files := []string{}
+	err := afero.Walk(fs.WorkingDirFs(), helpers.GeneratorTemplateFile(generator, p), func(path string, info os.FileInfo, err error) error {
+		if info !=nil && !info.IsDir() {
+			path = strings.Replace(path, "\\", "/", -1)
+			files = append(files, strings.Replace(path, strings.Replace(helpers.GeneratorTemplatePath(generator), "\\", "/", -1), "", -1))
+		}
+		return nil
+	})
+	return files, err
 }
 func plisModule(env *vm.Env, gen *generators.PlisGenerator, args []string) *vm.Env {
 	plis := env.NewPackage("plis")
@@ -154,7 +244,108 @@ func plisModule(env *vm.Env, gen *generators.PlisGenerator, args []string) *vm.E
 	plis.Define("Flags", flags)
 	addUserConfig(plis,gen.GetRootParent().Config.Name)
 	templateFunctions(plis,gen)
+	plis.Define("Help", gen.Cmd.Help)
+	addGoDashFuncs(plis)
+	addPrompterFuncs(plis)
 	return plis
+}
+func addGoDashFuncs(plis *vm.Env)  {
+	str := make(map[string]interface{})
+	str["IsASCII"] = godash.IsASCII
+	str["IsAlpha"] = godash.IsAlpha
+	str["IsAlphanumeric"] = godash.IsAlphanumeric
+	str["IsBase64"] = godash.IsBase64
+	str["IsByteLength"] = godash.IsByteLength
+	str["IsCreditCard"] = godash.IsCreditCard
+	str["IsDNSName"] = godash.IsDNSName
+	str["IsDataURI"] = godash.IsDataURI
+	str["IsDialString"] = godash.IsDialString
+	str["IsDivisibleBy"] = godash.IsDivisibleBy
+	str["IsEmail"] = godash.IsEmail
+	str["IsFilePath"] = godash.IsFilePath
+	str["IsFloat"] = godash.IsFloat
+	str["IsFullWidth"] = godash.IsFullWidth
+	str["IsHalfWidth"] = godash.IsHalfWidth
+	str["IsHexadecimal"] = godash.IsHexadecimal
+	str["IsHexcolor"] = godash.IsHexcolor
+	str["IsIP"] = godash.IsIP
+	str["IsIPv4"] = godash.IsIPv4
+	str["IsIPv6"] = godash.IsIPv6
+	str["IsISBN"] = godash.IsISBN
+	str["IsISBN10"] = godash.IsISBN10
+	str["IsISBN13"] = godash.IsISBN13
+	str["IsISO3166Alpha2"] = godash.IsISO3166Alpha2
+	str["IsISO3166Alpha3"] = godash.IsISO3166Alpha3
+	str["IsInRange"] = godash.IsInRange
+	str["IsInt"] = godash.IsInt
+	str["IsJSON"] = godash.IsJSON
+	str["IsLatitude"] = godash.IsLatitude
+	str["IsLongitude"] = godash.IsLongitude
+	str["IsLowerCase"] = godash.IsLowerCase
+	str["IsMAC"] = godash.IsMAC
+	str["IsMatches"] = godash.IsMatches
+	str["IsMongoID"] = godash.IsMongoID
+	str["IsMultibyte"] = godash.IsMultibyte
+	str["IsNatural"] = godash.IsNatural
+	str["IsNegative"] = godash.IsNegative
+	str["IsNonNegative"] = godash.IsNonNegative
+	str["IsNonPositive"] = godash.IsNonPositive
+	str["IsNull"] = godash.IsNull
+	str["IsNumeric"] = godash.IsNumeric
+	str["IsPort"] = godash.IsPort
+	str["IsPositive"] = godash.IsPositive
+	str["IsPrintableASCII"] = godash.IsPrintableASCII
+	str["IsRGBcolor"] = godash.IsRGBcolor
+	str["IsRequestURI"] = godash.IsRequestURI
+	str["IsSSN"] = godash.IsSSN
+	str["IsSemver"] = godash.IsSemver
+	str["IsStringLength"] = godash.IsStringLength
+	str["IsStringMatches"] = godash.IsStringMatches
+	str["IsURL"] = godash.IsURL
+	str["IsUTFDigit"] = godash.IsUTFDigit
+	str["IsUTFLetter"] = godash.IsUTFLetter
+	str["IsUTFLetterNumeric"] = godash.IsUTFLetterNumeric
+	str["IsUTFNumeric"] = godash.IsUTFNumeric
+	str["IsUUID"] = godash.IsUUID
+	str["IsUUIDv3"] = godash.IsUUIDv3
+	str["IsUUIDv4"] = godash.IsUUIDv4
+	str["IsUUIDv5"] = godash.IsUUIDv5
+	str["IsUpperCase"] = godash.IsUpperCase
+	str["IsVariableWidth"] = godash.IsVariableWidth
+	str["IsWhole"] = godash.IsWhole
+	str["ToCamelCase"] = godash.ToCamelCase;
+	str["ToString"] = godash.ToString;
+	str["ToBoolean"] = godash.ToBoolean;
+	str["ToSnakeCase"] = godash.ToSnakeCase;
+	str["ToFloat"] = godash.ToFloat;
+	str["ToInt"] = godash.ToInt;
+	str["ToJSON"] = godash.ToJSON;
+	str["ToKebabCase"] = func(t string) string {
+		return strings.Replace(godash.ToSnakeCase(t), "_", "-", -1)
+	}
+	str["ToLowerFirst"] = func(t string) string {
+		str := strings.ToLower(string(t[0]));
+		additional := string(t[1:])
+
+		return str + additional
+	}
+	str["ToStringArray"] = func(t string, s string) []string {
+		if t == "" {
+			return make([]string, 0)
+		}
+		str := strings.Split(t, s);
+		return str
+	}
+	plis.Define("Strings",str)
+}
+func addPrompterFuncs(plis *vm.Env)  {
+	pr := make(map[string]interface{})
+	pr["Prompt"] = prompter.Prompt;
+	pr["Choose"] = prompter.Choose;
+	pr["Password"] = prompter.Password;
+	pr["YN"] = prompter.YN;
+	pr["YesNo"] = prompter.YesNo;
+	plis.Define("Prompter",pr)
 }
 func addPersistentFlags(gen *generators.PlisGenerator, flags  *map[string]interface{})  {
 	current := gen.Parent

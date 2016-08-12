@@ -57,9 +57,13 @@ func (pg *PlisGenerator) ValidateArguments(args []string) {
 	}
 }
 func (pg *PlisGenerator) ValidateFlags(c *cobra.Command) {
+	if pg.Config.Flags == nil {
+		return
+	}
 	for _, v := range *pg.Config.Flags {
 		if !flagChanged(c.Flags(),v.Long) && v.Required{
 			fmt.Println(fmt.Sprintf("Please add required flag , `--%s` is required",v.Long))
+			os.Exit(-1)
 		}
 	}
 }

@@ -27,6 +27,9 @@ import (
 )
 
 func InitGenerators() {
+	if ex,_ := afero.Exists(fs.WorkingDirFs(),helpers.GeneratorsPath()); !ex {
+		return
+	}
 	d,_ :=afero.ReadDir(fs.WorkingDirFs(),helpers.GeneratorsPath())
 	for _,v:=range d {
 		CreateGenerator(helpers.RootGeneratorConfig(v.Name()),helpers.RootGeneratorScript(v.Name()),RootGenerator)
